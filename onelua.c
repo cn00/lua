@@ -49,10 +49,10 @@
 #include "luaconf.h"
 
 /* do not export internal symbols */
-#undef LUAI_FUNC
+//#undef LUAI_FUNC
 #undef LUAI_DDEC
 #undef LUAI_DDEF
-#define LUAI_FUNC	static
+//#define LUAI_FUNC	extern
 #define LUAI_DDEC(def)	/* empty */
 #define LUAI_DDEF	static
 
@@ -97,9 +97,9 @@
 #endif
 
 /* lua */
-#ifdef MAKE_LUA
+// #ifdef MAKE_LUA
 #include "lua.c"
-#endif
+// #endif
 
 /* luac */
 #ifdef MAKE_LUAC
