@@ -67,6 +67,7 @@ endif ( )
 # SETUP
 # Optional libraries
 find_package ( Readline )
+message("READLINE_FOUND:${READLINE_FOUND} LUA_USE_READLINE:${LUA_USE_READLINE}")
 if ( READLINE_FOUND )
   option ( LUA_USE_READLINE "Use readline in the Lua CLI." ON )
 endif ( )
@@ -78,7 +79,7 @@ if ( LUA_USE_POSIX )
 endif ( )
 
 if(APPLE)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fembed-bitcode -DLUA_USE_DLOPEN -DLUA_USE_MACOSX -DMAKE_LIB -DLUA_USE_READLINE")  
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fembed-bitcode -DLUA_USE_MACOSX -DMAKE_LIB")  
   set(CMAKE_MACOSX_RPATH ON)
   SET(CMAKE_SKIP_BUILD_RPATH TRUE)
   SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
@@ -94,7 +95,7 @@ endif(APPLE)
 # 	endif ( )
 # endif ( )
 
-if ( LUA_USE_READLINE )
+if ( READLINE_FOUND )
   # Add readline
   include_directories ( ${READLINE_INCLUDE_DIR} )
   list ( APPEND LIBS ${READLINE_LIBRARY} )
@@ -128,19 +129,29 @@ set ( SRC_LUAC ./luac.c )
 
 # add_library ( liblua_static STATIC ${SRC_CORE} ${SRC_LIB} ${LUA_DLL_RC} )
 add_library ( liblua ${SRC_CORE} ${SRC_LIB} ${LUA_DLL_RC} )
-target_link_libraries ( liblua ${LIBS} edit)
+target_link_libraries ( liblua ${LIBS})
+
 set_target_properties ( liblua PROPERTIES OUTPUT_NAME lua CLEAN_DIRECT_OUTPUT 1 )
 if ( LUA_BUILD_AS_DLL )
   set_target_properties ( liblua PROPERTIES COMPILE_DEFINITIONS LUA_BUILD_AS_DLL )
 endif ()
 
 add_executable ( lua ${SRC_LUA})
-target_link_libraries ( lua liblua  ${LIBS} edit)
+target_link_libraries ( lua liblua  ${LIBS})
+
+# readline
+if(READLINE_FOUND)
+  target_link_libraries ( liblua readline)
+  target_link_libraries ( lua readline)
+endif(READLINE_FOUND)
+
 if(APPLE)
   set_target_properties(liblua PROPERTIES 
     INSTALL_RPATH "@rpath;@rpath/libs;@executable_path;@executable_path/libs;@executable_path/Frameworks;@loader_path;@loader_path/libs;@loader_path/Frameworks"
   )
-set_target_properties(lua PROPERTIES 
+  set_target_properties(lua PROPERTIES
+    MACOSX_BUNDLE_GUI_IDENTIFIER "com.cn.lua"
+    MACOSX_BUNDLE_BUNDLE_VERSION "1.0"
     INSTALL_RPATH "@rpath;@rpath/libs;@executable_path;@executable_path/libs;@executable_path/Frameworks;@loader_path;@loader_path/libs;@loader_path/Frameworks"
   )
 endif(APPLE)
