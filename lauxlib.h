@@ -90,6 +90,8 @@ LUALIB_API void (luaL_unref) (lua_State *L, int t, int ref);
 
 LUALIB_API int (luaL_loadfilex) (lua_State *L, const char *filename,
                                                const char *mode);
+LUALIB_API int (luaL_loadfilex_) (lua_State *L, const char *filename,
+                                               const char *mode);
 
 #define luaL_loadfile(L,f)	luaL_loadfilex(L,f,NULL)
 
@@ -155,22 +157,6 @@ LUALIB_API void (luaL_requiref) (lua_State *L, const char *modname,
 
 /* push the value used to represent failure/error */
 #define luaL_pushfail(L)	lua_pushnil(L)
-
-
-/*
-** Internal assertions for in-house debugging
-*/
-#if !defined(lua_assert)
-
-#if defined LUAI_ASSERT
-  #include <assert.h>
-  #define lua_assert(c)		assert(c)
-#else
-  #define lua_assert(c)		((void)0)
-#endif
-
-#endif
-
 
 
 /*

@@ -202,6 +202,8 @@ static int equalkey (const TValue *k1, const Node *n2, int deadok) {
       return fvalue(k1) == fvalueraw(keyval(n2));
     case ctb(LUA_VLNGSTR):
       return luaS_eqlngstr(tsvalue(k1), keystrval(n2));
+    case ctb(LUA_VSHRSTR):
+      return eqshrstr(tsvalue(k1), keystrval(n2));
     default:
       return gcvalue(k1) == gcvalueraw(keyval(n2));
   }
@@ -485,7 +487,7 @@ static void reinsert (lua_State *L, Table *ot, Table *t) {
          already present in the table */
       TValue k;
       getnodekey(L, &k, old);
-      luaH_set(L, t, &k, gval(old));
+      setobjt2t(L, luaH_set(L, t, &k), gval(old));
     }
   }
 }
@@ -632,7 +634,7 @@ static Node *getfreepos (Table *t) {
 ** put new key in its main position; otherwise (colliding node is in its main
 ** position), new key goes to an empty position.
 */
-void luaH_newkey (lua_State *L, Table *t, const TValue *key, TValue *value) {
+TValue *luaH_newkey (lua_State *L, Table *t, const TValue *key) {
   Node *mp;
   TValue aux;
   if (unlikely(ttisnil(key)))
@@ -654,8 +656,7 @@ void luaH_newkey (lua_State *L, Table *t, const TValue *key, TValue *value) {
     if (f == NULL) {  /* cannot find a free place? */
       rehash(L, t, key);  /* grow table */
       /* whatever called 'newkey' takes care of TM cache */
-      luaH_set(L, t, key, value);  /* insert key into grown table */
-      return;
+      return luaH_set(L, t, key);  /* insert key into grown table */
     }
     lua_assert(!isdummy(t));
     othern = mainposition(t, keytt(mp), &keyval(mp));
@@ -683,7 +684,7 @@ void luaH_newkey (lua_State *L, Table *t, const TValue *key, TValue *value) {
   setnodekey(L, mp, key);
   luaC_barrierback(L, obj2gco(t), key);
   lua_assert(isempty(gval(mp)));
-  setobj2t(L, gval(mp), value);
+  return gval(mp);
 }
 
 
@@ -771,39 +772,34 @@ const TValue *luaH_get (Table *t, const TValue *key) {
 
 
 /*
-** Finish a raw "set table" operation, where 'slot' is where the value
-** should have been (the result of a previous "get table").
-** Beware: when using this function you probably need to check a GC
-** barrier and invalidate the TM cache.
-*/
-void luaH_finishset (lua_State *L, Table *t, const TValue *key,
-                                   const TValue *slot, TValue *value) {
-  if (isabstkey(slot))
-    luaH_newkey(L, t, key, value);
-  else
-    setobj2t(L, cast(TValue *, slot), value);
-}
-
-
-/*
 ** beware: when using this function you probably need to check a GC
 ** barrier and invalidate the TM cache.
 */
-void luaH_set (lua_State *L, Table *t, const TValue *key, TValue *value) {
-  const TValue *slot = luaH_get(t, key);
-  luaH_finishset(L, t, key, slot, value);
+TValue *luaH_set (lua_State *L, Table *t, const TValue *key) {
+  const TValue *p;
+  if(isshared(t))
+    luaG_runerror(L, "attempt to change a shared table");
+  p = luaH_get(t, key);
+  if (!isabstkey(p))
+    return cast(TValue *, p);
+  else return luaH_newkey(L, t, key);
 }
 
 
 void luaH_setint (lua_State *L, Table *t, lua_Integer key, TValue *value) {
-  const TValue *p = luaH_getint(t, key);
-  if (isabstkey(p)) {
+  const TValue *p;
+  TValue *cell;
+  if(isshared(t))
+    luaG_runerror(L, "attempt to change a shared table");
+  p = luaH_getint(t, key);
+  if (!isabstkey(p))
+    cell = cast(TValue *, p);
+  else {
     TValue k;
     setivalue(&k, key);
-    luaH_newkey(L, t, &k, value);
+    cell = luaH_newkey(L, t, &k);
   }
-  else
-    setobj2t(L, cast(TValue *, p), value);
+  setobj2t(L, cell, value);
 }
 
 

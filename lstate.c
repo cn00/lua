@@ -55,7 +55,7 @@ typedef struct LG {
 ** A macro to create a "random" seed when a state is created;
 ** the seed is used to randomize string hashes.
 */
-#if !defined(luai_makeseed)
+#if 0 && !defined(luai_makeseed)
 
 #include <time.h>
 
@@ -213,14 +213,17 @@ static void freestack (lua_State *L) {
 ** Create registry table and its predefined values
 */
 static void init_registry (lua_State *L, global_State *g) {
+  TValue temp;
   /* create registry */
   Table *registry = luaH_new(L);
   sethvalue(L, &g->l_registry, registry);
   luaH_resize(L, registry, LUA_RIDX_LAST, 0);
   /* registry[LUA_RIDX_MAINTHREAD] = L */
-  setthvalue(L, &registry->array[LUA_RIDX_MAINTHREAD - 1], L);
-  /* registry[LUA_RIDX_GLOBALS] = new table (table of globals) */
-  sethvalue(L, &registry->array[LUA_RIDX_GLOBALS - 1], luaH_new(L));
+  setthvalue(L, &temp, L);  /* temp = L */
+  luaH_setint(L, registry, LUA_RIDX_MAINTHREAD, &temp);
+  /* registry[LUA_RIDX_GLOBALS] = table of globals */
+  sethvalue(L, &temp, luaH_new(L));  /* temp = new table (global table) */
+  luaH_setint(L, registry, LUA_RIDX_GLOBALS, &temp);
 }
 
 
@@ -364,7 +367,6 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   g->warnf = NULL;
   g->ud_warn = NULL;
   g->mainthread = L;
-  g->seed = luai_makeseed(L);
   g->gcrunning = 0;  /* no GC while building state */
   g->strt.size = g->strt.nuse = 0;
   g->strt.hash = NULL;

@@ -207,7 +207,7 @@ static int iscleared (global_State *g, const GCObject *o) {
 */
 void luaC_barrier_ (lua_State *L, GCObject *o, GCObject *v) {
   global_State *g = G(L);
-  lua_assert(isblack(o) && iswhite(v) && !isdead(g, v) && !isdead(g, o));
+  lua_assert(isblack(o) && iswhite(v) && !isdead(g, v) && !isdead(g, o) && !isshared(o));
   if (keepinvariant(g)) {  /* must keep invariant? */
     reallymarkobject(g, v);  /* restore invariant */
     if (isold(o)) {
@@ -289,6 +289,8 @@ GCObject *luaC_newobj (lua_State *L, int tt, size_t sz) {
 ** (only closures can), and a userdata's metatable must be a table.
 */
 static void reallymarkobject (global_State *g, GCObject *o) {
+  if (isshared(o))
+    return;
   switch (o->tt) {
     case LUA_VSHRSTR:
     case LUA_VLNGSTR: {
@@ -822,7 +824,9 @@ static GCObject **sweeplist (lua_State *L, GCObject **p, int countin,
   for (i = 0; *p != NULL && i < countin; i++) {
     GCObject *curr = *p;
     int marked = curr->marked;
-    if (isdeadm(ow, marked)) {  /* is 'curr' dead? */
+    if (isshared(curr))
+      p = &curr->next;
+    else if (isdeadm(ow, marked)) {  /* is 'curr' dead? */
       *p = curr->next;  /* remove 'curr' from list */
       freeobj(L, curr);  /* erase 'curr' */
     }
@@ -1053,7 +1057,9 @@ static void sweep2old (lua_State *L, GCObject **p) {
   GCObject *curr;
   global_State *g = G(L);
   while ((curr = *p) != NULL) {
-    if (iswhite(curr)) {  /* is 'curr' dead? */
+    if (isshared(curr))
+       p = &curr->next;  /* go to next element */
+    else if (iswhite(curr)) {  /* is 'curr' dead? */
       lua_assert(isdead(g, curr));
       *p = curr->next;  /* remove 'curr' from list */
       freeobj(L, curr);  /* erase 'curr' */
@@ -1099,7 +1105,9 @@ static GCObject **sweepgen (lua_State *L, global_State *g, GCObject **p,
   int white = luaC_white(g);
   GCObject *curr;
   while ((curr = *p) != limit) {
-    if (iswhite(curr)) {  /* is 'curr' dead? */
+    if (isshared(curr))
+      p = &curr->next;  /* go to next element */
+    else if (iswhite(curr)) {  /* is 'curr' dead? */
       lua_assert(!isold(curr) && isdead(g, curr));
       *p = curr->next;  /* remove 'curr' from list */
       freeobj(L, curr);  /* erase 'curr' */
