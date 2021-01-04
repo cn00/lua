@@ -141,9 +141,9 @@
 
 static int os_execute (lua_State *L) {
   const char *cmd = luaL_optstring(L, 1, NULL);
-  int stat;
+  int stat = 0;
   errno = 0;
-  stat = system(cmd);
+//  stat = system(cmd);
   if (cmd != NULL)
     return luaL_execresult(L, stat);
   else {
