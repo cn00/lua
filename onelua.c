@@ -2,6 +2,8 @@
 * one.c -- Lua core, libraries, and interpreter in a single file
 */
 
+#if USE_ONELUA
+
 /* default is to build the full interpreter */
 #ifndef MAKE_LIB
 #ifndef MAKE_LUAC
@@ -105,3 +107,5 @@
 #ifdef MAKE_LUAC
 #include "luac.c"
 #endif
+
+#endif //#ifdef USE_ONELUA

@@ -107,7 +107,7 @@ static void pushfuncname (lua_State *L, lua_Debug *ar) {
   else if (*ar->what == 'm')  /* main? */
       lua_pushliteral(L, "main chunk");
   else if (*ar->what != 'C')  /* for Lua functions, use <file:line> */
-    lua_pushfstring(L, "function <%s:%d>", ar->short_src, ar->linedefined);
+    lua_pushfstring(L, "function %s:%d", ar->short_src, ar->linedefined);
   else  /* nothing left... */
     lua_pushliteral(L, "?");
 }
@@ -152,7 +152,7 @@ LUALIB_API void luaL_traceback (lua_State *L, lua_State *L1,
       if (ar.currentline <= 0)
         lua_pushfstring(L, "\n\t%s: in ", ar.short_src);
       else
-        lua_pushfstring(L, "\n\t%s:%d: in ", ar.short_src, ar.currentline);
+        lua_pushfstring(L, "\n\t%s:%d in ", ar.short_src, ar.currentline);
       luaL_addvalue(&b);
       pushfuncname(L, &ar);
       luaL_addvalue(&b);
@@ -218,7 +218,7 @@ LUALIB_API void luaL_where (lua_State *L, int level) {
   if (lua_getstack(L, level, &ar)) {  /* check function at level */
     lua_getinfo(L, "Sl", &ar);  /* get info about it */
     if (ar.currentline > 0) {  /* is there info? */
-      lua_pushfstring(L, "%s:%d: ", ar.short_src, ar.currentline);
+      lua_pushfstring(L, "%s:%d ", ar.short_src, ar.currentline);
       return;
     }
   }

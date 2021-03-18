@@ -68,7 +68,7 @@
 #define LUA_USE_POSIX
 #define LUA_USE_DLOPEN		/* MacOS does not need -ldl */
 #endif
-
+#define LUA_USE_DLOPEN
 
 /*
 @@ LUAI_IS32INT is true iff 'int' has (at least) 32 bits.
@@ -225,7 +225,9 @@
 
 #if !defined(LUA_CPATH_DEFAULT)
 #define LUA_CPATH_DEFAULT \
-		LUA_CDIR"?.so;" LUA_CDIR"loadall.so;" "./?.so"
+		LUA_CDIR"?.so;" LUA_CDIR"loadall.so;./?.so;" \
+		LUA_CDIR"?.dylib;" LUA_CDIR"loadall.dylib;./?.dylib;" LUA_CDIR"lib?.dylib;./lib?.dylib;" \
+		LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll;./?.dll;" LUA_CDIR"lib?.dll;" LUA_CDIR"loadall.dll;./lib?.dll;"
 #endif
 
 #endif			/* } */
