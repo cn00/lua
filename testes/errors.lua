@@ -24,8 +24,9 @@ local function doit (s)
 end
 
 
-local function checkmessage (prog, msg)
+local function checkmessage (prog, msg, debug)
   local m = doit(prog)
+  if debug then print(m) end
   assert(string.find(m, msg, 1, true))
 end
 
@@ -120,6 +121,17 @@ assert(not string.find(doit"a={13}; local bbbb=1; a[bbbb](3)", "'bbbb'"))
 checkmessage("a={13}; local bbbb=1; a[bbbb](3)", "number")
 checkmessage("a=(1)..{}", "a table value")
 
+-- calls
+checkmessage("local a; a(13)", "local 'a'")
+checkmessage([[
+  local a = setmetatable({}, {__add = 34})
+  a = a + 1
+]], "metamethod 'add'")
+checkmessage([[
+  local a = setmetatable({}, {__lt = {}})
+  a = a > a
+]], "metamethod 'lt'")
+
 -- tail calls
 checkmessage("local a={}; return a.bbbb(3)", "field 'bbbb'")
 checkmessage("a={}; do local a=1 end; return a:bbbb(3)", "method 'bbbb'")
@@ -177,6 +189,13 @@ checkmessage("return 3.009 & 1", "has no integer representation")
 checkmessage("return 34 >> {}", "table value")
 checkmessage("a = 24 // 0", "divide by zero")
 checkmessage("a = 1 % 0", "'n%0'")
+
+
+-- type error for an object which is neither in an upvalue nor a register.
+-- The following code will try to index the value 10 that is stored in
+-- the metatable, without moving it to a register.
+checkmessage("local a = setmetatable({}, {__index = 10}).x",
+             "attempt to index a number value")
 
 
 -- numeric for loops
@@ -400,6 +419,14 @@ if not b then
     end
   end
 end]], 5)
+
+do
+  -- Force a negative estimate for base line. Error in instruction 2
+  -- (after VARARGPREP, GETGLOBAL), with first absolute line information
+  -- (forced by too many lines) in instruction 0.
+  local s = string.format("%s return __A.x", string.rep("\n", 300))
+  lineerror(s, 301)
+end
 
 
 if not _soft then
