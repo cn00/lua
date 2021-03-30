@@ -3,9 +3,9 @@
 # Redistribution and use of this file is allowed according to the terms of the MIT license.
 # For details see the COPYRIGHT file distributed with LuaDist.
 # Please note that the package source code is licensed under its own license.
+cmake_minimum_required(VERSION 3.10)
 
 project ( lua )
-cmake_minimum_required ( VERSION 3.1.3 )
 include ( cmake/dist.cmake )
 
 ## CONFIGURATION
@@ -63,13 +63,15 @@ else ( )
     option(LUA_USE_MACOSX "" ON)
   endif(APPLE)
 endif ( )
+option ( LUA_USE_DLOPEN "Use dynamic linker to load modules." ON )
 
 # SETUP
 # Optional libraries
 find_package ( Readline )
-message("READLINE_FOUND:${READLINE_FOUND} LUA_USE_READLINE:${LUA_USE_READLINE}")
+message("READLINE_FOUND:${READLINE_FOUND} LUA_USE_READLINE:${LUA_USE_READLINE} ${READLINE_LIBRARY} ${READLINE_INCLUDE_DIR}")
 if ( READLINE_FOUND )
   option ( LUA_USE_READLINE "Use readline in the Lua CLI." ON )
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLUA_USE_READLINE")  
 endif ( )
 
 # Setup needed variables and libraries
@@ -106,12 +108,25 @@ endif ( )
 # configure_file ( ./luaconf.h.in ${CMAKE_CURRENT_BINARY_DIR}/luaconf.h )
 
 # Sources and headers
-include_directories ( src ${CMAKE_CURRENT_BINARY_DIR} )
+include_directories ( src 
+        ${CMAKE_CURRENT_BINARY_DIR} 
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../skynet-src
+)
 
 file(GLOB_RECURSE SRC_CORE 
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/onelua.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.c
 )
+
+# file(GLOB_RECURSE SRC_CORE_EXCLUDE
+#     ${CMAKE_CURRENT_SOURCE_DIR}/testes/*
+#     ${CMAKE_CURRENT_SOURCE_DIR}/luac.c
+# )
+# list(REMOVE_ITEM SRC_CORE ${SRC_CORE_EXCLUDE})
+# or
+list(FILTER SRC_CORE EXCLUDE REGEX ".*testes.*")
+list(FILTER SRC_CORE EXCLUDE REGEX ".*luac.c")
+
 source_group_by_dir(${CMAKE_CURRENT_SOURCE_DIR} SRC_CORE)
 
 set ( SRC_LUA  ./luaexe.c )
@@ -136,30 +151,38 @@ if ( LUA_BUILD_AS_DLL )
   set_target_properties ( liblua PROPERTIES COMPILE_DEFINITIONS LUA_BUILD_AS_DLL )
 endif ()
 
-add_executable ( lua ${SRC_LUA})
-target_link_libraries ( lua liblua  ${LIBS})
+# add_executable ( lua ${SRC_LUA})
+# target_link_libraries ( lua liblua  ${LIBS})
+
+add_executable ( luac ${SRC_LUAC})
+target_link_libraries ( luac liblua ${LIBS})
 
 # readline
 if(READLINE_FOUND)
   target_link_libraries ( liblua readline)
-  target_link_libraries ( lua readline)
+#   target_link_libraries ( lua readline)
 endif(READLINE_FOUND)
 
 if(APPLE)
   set_target_properties(liblua PROPERTIES 
     INSTALL_RPATH "@rpath;@rpath/libs;@executable_path;@executable_path/libs;@executable_path/Frameworks;@loader_path;@loader_path/libs;@loader_path/Frameworks"
   )
-  set_target_properties(lua PROPERTIES
-    MACOSX_BUNDLE_GUI_IDENTIFIER "com.cn.lua"
-    MACOSX_BUNDLE_BUNDLE_VERSION "1.0"
-    INSTALL_RPATH "@rpath;@rpath/libs;@executable_path;@executable_path/libs;@executable_path/Frameworks;@loader_path;@loader_path/libs;@loader_path/Frameworks"
-  )
+
+#   set_target_properties(lua PROPERTIES
+#     MACOSX_BUNDLE_GUI_IDENTIFIER "com.cn.lua"
+#     MACOSX_BUNDLE_BUNDLE_VERSION "1.0"
+#     INSTALL_RPATH "@rpath;@rpath/libs;@executable_path;@executable_path/libs;@executable_path/Frameworks;@loader_path;@loader_path/libs;@loader_path/Frameworks"
+#   )
+
+  # # 复制文件 https://www.cnblogs.com/JoyPoint/p/11629521.html
+  # add_custom_command(TARGET lua
+  #   POST_BUILD
+  #   COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/res 
+  #   COMMAND ${CMAKE_COMMAND} -E make_directory "Heads"
+  # )
 endif(APPLE)
 
 # add_library ( lua_static STATIC ${SRC_CORE})
-
-# add_executable ( luac ${SRC_CORE} ${SRC_LUAC} luac/luac.rc )
-# target_link_libraries ( luac ${LIBS} )
 
 # On windows a variant of the lua interpreter without console output needs to be built
 if ( LUA_BUILD_WLUA )
@@ -169,7 +192,7 @@ if ( LUA_BUILD_WLUA )
 endif ( )
 
 if(NOT IOS AND NOT ANDROID)
-  install_executable ( lua )
+#   install_executable ( lua )
   install_library ( liblua )
   install_data ( README.md )
   #install_lua_module ( strict etc/strict.lua )

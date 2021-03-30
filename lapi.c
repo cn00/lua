@@ -647,11 +647,21 @@ static int auxgetstr (lua_State *L, const TValue *t, const char *k) {
 }
 
 
+/*
+** Get the global table in the registry. Since all predefined
+** indices in the registry were inserted right when the registry
+** was created and never removed, they must always be in the array
+** part of the registry.
+*/
+#define getGtable(L)  \
+	(&hvalue(&G(L)->l_registry)->array[LUA_RIDX_GLOBALS - 1])
+
+
 LUA_API int lua_getglobal (lua_State *L, const char *name) {
-  Table *reg;
+  const TValue *G;
   lua_lock(L);
-  reg = hvalue(&G(L)->l_registry);
-  return auxgetstr(L, luaH_getint(reg, LUA_RIDX_GLOBALS), name);
+  G = getGtable(L);
+  return auxgetstr(L, G, name);
 }
 
 
@@ -829,10 +839,10 @@ static void auxsetstr (lua_State *L, const TValue *t, const char *k) {
 
 
 LUA_API void lua_setglobal (lua_State *L, const char *name) {
-  Table *reg;
+  const TValue *G;
   lua_lock(L);  /* unlock done in 'auxsetstr' */
-  reg = hvalue(&G(L)->l_registry);
-  auxsetstr(L, luaH_getint(reg, LUA_RIDX_GLOBALS), name);
+  G = getGtable(L);
+  auxsetstr(L, G, name);
 }
 
 
@@ -879,12 +889,10 @@ LUA_API void lua_seti (lua_State *L, int idx, lua_Integer n) {
 
 static void aux_rawset (lua_State *L, int idx, TValue *key, int n) {
   Table *t;
-  TValue *slot;
   lua_lock(L);
   api_checknelems(L, n);
   t = gettable(L, idx);
-  slot = luaH_set(L, t, key);
-  setobj2t(L, slot, s2v(L->top - 1));
+  luaH_set(L, t, key, s2v(L->top - 1));
   invalidateTMcache(t);
   luaC_barrierback(L, obj2gco(t), s2v(L->top - 1));
   L->top -= n;
@@ -930,7 +938,7 @@ LUA_API int lua_setmetatable (lua_State *L, int objindex) {
   }
   switch (ttype(obj)) {
     case LUA_TTABLE: {
-      if (isshared(hvalue(obj)))
+      if (l_unlikely(isshared(hvalue(obj))))
         luaG_runerror(L, "can't setmetatable to shared table");
       hvalue(obj)->metatable = mt;
       if (mt) {
@@ -1073,8 +1081,7 @@ LUA_API int lua_pcallk (lua_State *L, int nargs, int nresults, int errfunc,
 static void set_env (lua_State *L, LClosure *f) {
   if (f->nupvalues >= 1) {  /* does it have an upvalue? */
     /* get global table from registry */
-    Table *reg = hvalue(&G(L)->l_registry);
-    const TValue *gt = luaH_getint(reg, LUA_RIDX_GLOBALS);
+    const TValue *gt = getGtable(L);
     /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
     setobj(L, f->upvals[0]->v, gt);
     luaC_barrier(L, f->upvals[0], gt);
@@ -1128,7 +1135,7 @@ LUA_API void lua_sharestring (lua_State *L, int index) {
 LUA_API void lua_clonetable(lua_State *L, const void * tp) {
   Table *t = cast(Table *, tp);
 
-  if (!isshared(t))
+  if (l_unlikely(!isshared(t)))
     luaG_runerror(L, "Not a shared table");
 
   lua_lock(L);
